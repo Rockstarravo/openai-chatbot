@@ -1,3 +1,4 @@
+#dowload teh packages
 import openai
 import pandas as pd
 import streamlit as st
@@ -7,36 +8,44 @@ from st_files_connection import FilesConnection
 #pulling the key from the streamlit secrets
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-
+# define when we intent the pull the file and feed to the bot
 def embedding_s3_file():
             conn = st.connection('s3', type=FilesConnection)
             dataframe_result = conn.read("bucketname/file", input_format="csv", ttl=500)
             return dataframe_result
 
+# Setting up the title
 st.title("Q/A Conversational Bot")
 
-
+# bumping up the session state and holding the values
+# declare the openai_model
 if "openai_model" not in st.session_state:
     st.session_state["openai_model"] = "gpt-3.5-turbo"
 
+# Addign messages to carry out the messages on conversations 
+# On Each phase of the chat, we need to ensure responses should be appending to messages, On failure case Chatbot couldnt provide accurate data on loosen history
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-
+# Below loop responsible to populate the messages on existance
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# User input will be validated here and chats published as an array to llm model which evetually responds by processing the orior conversations
 if user_input := st.chat_input("Type Something here"):
     with st.chat_message("user"):
         st.markdown(user_input)
         st.session_state.messages.append({"role": "user", "content": user_input})
-      
+
+# During file read, below one will be invoked (user_input="upload s3 file")            
     if user_input in "upload s3 file":
         df2=embedding_s3_file()
         st.session_state.messages.append({"role": "user", "content": "kindly process my data "+ str(df2)})
         print(st.session_state.messages)
-      
+
+# Here we go bot side processing which begins up the empty value and holds the response from gpt model
+# Condtion openai.ChatCompletion.create() works on executing the user intent and reverts with suitable answer
     with st.chat_message("bot"):
         message_placeholder = st.empty()
         full_response = ""

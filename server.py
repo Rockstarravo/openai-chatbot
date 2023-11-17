@@ -2,6 +2,7 @@
 import openai
 import pandas as pd
 import streamlit as st
+import boto3
 from io import StringIO
 from st_files_connection import FilesConnection
 
@@ -9,10 +10,21 @@ from st_files_connection import FilesConnection
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # define when we intent the pull the file and feed to the bot
-def embedding_s3_file():
+def embedding_s3_file(bucketname,folder_path,filename):
             conn = st.connection('s3', type=FilesConnection)
             dataframe_result = conn.read("bucketname/file", input_format="csv", ttl=500)
             return dataframe_result
+
+def get_all_s3_files(bucketname,folder_prefix):
+    s3 = boto3.client('s3')
+    try:
+        response = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder_prefix)
+
+        file_list = [content['Key'] for content in response.get('Contents', [])]
+        return file_list
+
+    except Exception as e:
+        st.error(f"Error: {e}")
 
 # Setting up the title
 st.title("Q/A Conversational Bot")
@@ -40,8 +52,10 @@ if user_input := st.chat_input("Type Something here"):
 
 # During file read, below one will be invoked (user_input="upload s3 file")            
     if user_input in "upload s3 file":
-        df2=embedding_s3_file()
-        st.session_state.messages.append({"role": "user", "content": "kindly process my data "+ str(df2)})
+        filenames=get_all_s3_files("bucket_name","folder_name")
+        for j in filenames:
+            content = embedding_s3_file("bucket_name","folder_name",j)
+            st.session_state.messages.append({"role": "user", "content": "kindly process my data "+ str(content)})
         print(st.session_state.messages)
 
 # Here we go bot side processing which begins up the empty value and holds the response from gpt model
